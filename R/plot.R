@@ -65,6 +65,14 @@ ggsave(
     width = 8, height = 8, units = "in", dpi = 600
 )
 
+writexl::write_xlsx(
+    list(
+        "No. of pmid" = d2 |> dcast(concepts_name ~ year, value.var = "n_pmid", fill = 0),
+        "No. of doi"  = d2 |> dcast(concepts_name ~ year, value.var = "n_doi", fill = 0)
+    ), 
+    "output/concepts.xlsx"
+)
+
 # 2 ---------------------
 
 d2 <- d1[, by = .(year, concepts_children_name), .(
@@ -135,6 +143,14 @@ ggsave(
 )
 
 
+writexl::write_xlsx(
+    list(
+        "No. of pmid" = d2 |> dcast(concepts_children_name ~ year, value.var = "n_pmid", fill = 0),
+        "No. of doi"  = d2 |> dcast(concepts_children_name ~ year, value.var = "n_doi", fill = 0)
+    ), 
+    "output/concepts_children.xlsx"
+)
+
 # 3 ----------------------
 
 d3 <- d1[, c("doi", "pmid", "year", "MeSH terms"), with = FALSE] |> unique()
@@ -154,6 +170,13 @@ d3 <- d3[, by = .(year, `MeSH term`), .(
     n_pmid = pmid |> unique() |> length()
 )]
 
+writexl::write_xlsx(
+    list(
+        "No. of pmid" = d3 |> dcast(`MeSH term` ~ year, value.var = "n_pmid", fill = 0),
+        "No. of doi"  = d3 |> dcast(`MeSH term` ~ year, value.var = "n_doi", fill = 0)
+    ), 
+    "output/MeSH_terms.xlsx"
+)
 
 t2 <- d3[, by = `MeSH term`, .(
     cumn_doi = n_doi |> sum(),
