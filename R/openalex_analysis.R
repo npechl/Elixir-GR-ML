@@ -13,9 +13,9 @@ d0 <- fread("data/openalex/output_openalex-affil")
 
 # filter `GR` ------------------
 
-index <- d0$countries |> str_detect("GR")
+# index <- d0$countries |> str_detect("GR")
 
-d1 <- d0[index]
+d1 <- d0 # [index]
 
 # split concepts ---------------
  
@@ -81,7 +81,9 @@ gc()
 
 d2 <- d2[order(year, pmid, doi, -concepts_score, -concepts_children_score)]
 
-writexl::write_xlsx(d2, "data/clean-data.xlsx")
+# writexl::write_xlsx(d2, "data/clean-data.xlsx")
+
+fwrite(d2, "data/clean-data.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
 
 
 

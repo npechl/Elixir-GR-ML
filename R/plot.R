@@ -16,140 +16,52 @@ library(ggplot2)
 library(ggnewscale)
 library(colorspace)
 
+source("R/helpers.R")
+
 # load data ----------------
 
 
-d0 <- "data/clean-data.xlsx" |> readxl::read_xlsx() |> setDT()
+d0 <- "data/clean-data.tsv" |> fread(sep = "\t", fill = TRUE, quote = "")
 
 # filtering ---------------
 
-d1 <- d0[which(!is.na(`MeSH IDs`))]
+d1 <- d0[which(!is.na(`MeSH IDs`) & `MeSH IDs` != "")]
 d1 <- d1[which(year >= 2000)]
+
+d1$year <- d1$year |> as.numeric()
+
+rm(d0)
+gc()
+
+index <- d1$countries |> str_detect("GR") |> which()
+
+greece <- d1[index]
+world  <- d1[-index]
+
+rm(index)
 
 # 1 -----------------------
 
-d2 = d1[, by = .(year, concepts_name), .(
-    n_doi  = doi |> unique() |> length(),
-    n_pmid = pmid |> unique() |> length()
-)]
+t1 <- analyse_concepts(world)
+t2 <- analyse_concepts(greece)
 
+ggsave(plot = t1$plot, filename = "output/figures/n_pmid.concepts.world.png", width = 8, height = 8, units = "in", dpi = 600)
+ggsave(plot = t2$plot, filename = "output/figures/n_pmid.concepts.greece.png", width = 8, height = 8, units = "in", dpi = 600)
 
-gr1 <- d2 |>
-    ggplot(aes(year, n_pmid)) +
-    
-    geom_smooth(aes(color = concepts_name, fill = concepts_name), alpha = .1, lineend = "round") +
-    
-    geom_point(aes(fill = concepts_name, color = concepts_name), shape = 21, size = 2, stroke = .25) +
-    
-    scale_color_manual(values = c("#CD534C", "#4A6990", "#79AF97") |> darken(.25)) +
-    scale_fill_manual(values = c("#CD534C", "#4A6990", "#79AF97") |> lighten(.25)) +
-    
-    scale_x_continuous(breaks = seq(2000, 2024, by = 3)) +
-    scale_y_continuous(transform = "log2", breaks = c(1, 2, 4, 8, 16, 32, 64, 128)) +
-    
-    theme_minimal() +
-    
-    theme(
-        legend.position = "top",
-        legend.title.position = "top",
-        
-        panel.grid.major = element_line(linetype = "dashed", lineend = "round", color = "grey85"),
-        panel.grid.minor = element_line(linetype = "dashed", lineend = "round", color = "grey85"),
-        
-        plot.margin = margin(20, 20, 20, 20)
-    )
-
-ggsave(
-    plot = gr1,
-    filename = "output/figures/n_pmid.concepts.png",
-    width = 8, height = 8, units = "in", dpi = 600
-)
-
-writexl::write_xlsx(
-    list(
-        "No. of pmid" = d2 |> dcast(concepts_name ~ year, value.var = "n_pmid", fill = 0),
-        "No. of doi"  = d2 |> dcast(concepts_name ~ year, value.var = "n_doi", fill = 0)
-    ), 
-    "output/concepts.xlsx"
-)
+writexl::write_xlsx(t1$tables, "output/concepts.world.xlsx")
+writexl::write_xlsx(t2$tables, "output/concepts.greece.xlsx")
 
 # 2 ---------------------
 
-d2 <- d1[, by = .(year, concepts_children_name), .(
-    n_doi = doi |> unique() |> length(),
-    n_pmid = pmid |> unique() |> length()
-)]
+t1 <- analyse_concepts_children(world)
+t2 <- analyse_concepts_children(greece)
 
+ggsave(plot = t1$plot, filename = "output/figures/n_pmid.concepts_children.world.png", width = 8, height = 8, units = "in", dpi = 600)
+ggsave(plot = t2$plot, filename = "output/figures/n_pmid.concepts_children.children.png", width = 8, height = 8, units = "in", dpi = 600)
 
-d2 <- d2[which(!is.na(concepts_children_name))]
+writexl::write_xlsx(t1$tables, "output/concepts_children.world.xlsx")
+writexl::write_xlsx(t2$tables, "output/concepts_children.greece.xlsx")
 
-t1 <- d2[, by = concepts_children_name, .(
-    cumn_pmids = n_pmid |> sum(),
-    cumn_dois  = n_doi |> sum()
-)]
-
-t1 <- t1[which(cumn_pmids >= 5)]
-
-
-d3 <- d2[which(concepts_children_name %in% t1$concepts_children_name)]
-mm <- d3 |> dcast(concepts_children_name ~ year, value.var = "n_pmid", fill = 0)
-
-ht <- mm[, -1] |> 
-    setDF(rownames = mm$concepts_children_name) |> 
-    as.matrix() |> 
-    dist(method = "euclidean") |> 
-    hclust(method = "ward.D2")
-
-d3$term <- d3$concepts_children_name |>
-    factor(levels = ht$labels[ht$order])
-
-gr2 <- d3 |>
-    ggplot(aes(year, term)) +
-    
-    geom_vline(xintercept = seq(1999.5, 2019.5, by = 1), color = "grey85", linewidth = .15) +
-    geom_hline(yintercept = seq(.5, nrow(t1) + .5, by = 1), color = "grey85", linewidth = .15) +
-    
-    geom_tile(aes(fill = n_pmid), color = "grey75", linewidth = .15) +
-    
-    scale_x_continuous(expand = c(0, 0), breaks = seq(2002, 2024, by = 4)) +
-    scale_y_discrete(expand = c(0, 0)) +
-    
-    scale_fill_stepsn(
-        colors = c("#00429d","#73a2c6","#ffffe0","#f4777f","#93003a"),
-        transform = "log2", breaks = c(2, 4, 8, 16),
-        
-        guide = guide_colorsteps(
-            barheight = unit(16, "lines"),
-            barwidth = unit(.5, "lines")
-        )
-    ) +
-    
-    theme_minimal() +
-    
-    theme(
-        # legend.position = "top",
-        # legend.title.position = "top",
-        
-        axis.text.y = element_text(size = 6),
-        
-        axis.title = element_blank(),
-        
-        panel.grid = element_blank()
-    )
-
-ggsave(
-    plot = gr2, filename = "output/figures/n_pmid.concepts_children.png",
-    width = 6, height = 12, units = "in", dpi = 600
-)
-
-
-writexl::write_xlsx(
-    list(
-        "No. of pmid" = d2 |> dcast(concepts_children_name ~ year, value.var = "n_pmid", fill = 0),
-        "No. of doi"  = d2 |> dcast(concepts_children_name ~ year, value.var = "n_doi", fill = 0)
-    ), 
-    "output/concepts_children.xlsx"
-)
 
 # 3 ----------------------
 
