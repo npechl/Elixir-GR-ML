@@ -16,6 +16,8 @@ library(ggplot2)
 library(ggnewscale)
 library(colorspace)
 
+library(paletteer)
+
 source("R/helpers.R")
 
 # load data ----------------
@@ -42,129 +44,104 @@ rm(index)
 
 # 1 -----------------------
 
-t1 <- analyse_concepts(world)
-t2 <- analyse_concepts(greece)
+t1      <- list()
+t1_plot <- list()
 
-ggsave(plot = t1$plot, filename = "output/figures/n_pmid.concepts.world.png", width = 8, height = 8, units = "in", dpi = 600)
-ggsave(plot = t2$plot, filename = "output/figures/n_pmid.concepts.greece.png", width = 8, height = 8, units = "in", dpi = 600)
+t1[["world"]]  <- analyse_concepts(world)
+t1[["greece"]] <- analyse_concepts(greece)
 
-writexl::write_xlsx(t1$tables, "output/concepts.world.xlsx")
-writexl::write_xlsx(t2$tables, "output/concepts.greece.xlsx")
+t1_plot[["world"]]  <- plot_concepts(t1$world$original)
+t1_plot[["greece"]] <- plot_concepts(t1$greece$original)
+
+ggsave(plot = t1_plot$world, filename = "output/figures/npmid.concepts.world.png", width = 8, height = 8, units = "in", dpi = 600)
+ggsave(plot = t1_plot$greece, filename = "output/figures/npmid.concepts.greece.png", width = 8, height = 8, units = "in", dpi = 600)
+
+writexl::write_xlsx(t1$world$tables, "output/concepts.world.xlsx")
+writexl::write_xlsx(t1$greece$tables, "output/concepts.greece.xlsx")
 
 # 2 ---------------------
 
-t1 <- analyse_concepts_children(world)
-t2 <- analyse_concepts_children(greece)
+t2      <- list()
+t2_plot <- list()
 
-ggsave(plot = t1$plot, filename = "output/figures/n_pmid.concepts_children.world.png", width = 8, height = 8, units = "in", dpi = 600)
-ggsave(plot = t2$plot, filename = "output/figures/n_pmid.concepts_children.children.png", width = 8, height = 8, units = "in", dpi = 600)
+t2[["world"]]  <- analyse_concepts_children(world)
+t2[["greece"]] <- analyse_concepts_children(greece)
 
-writexl::write_xlsx(t1$tables, "output/concepts_children.world.xlsx")
-writexl::write_xlsx(t2$tables, "output/concepts_children.greece.xlsx")
+t2_plot[["world"]]  <- plot_concepts_children(t2$world$filtered, my_palette = "ggthemes::Red-Blue Diverging", my_direction = -1)
+t2_plot[["greece"]] <- plot_concepts_children(t2$greece$filtered, my_palette = "grDevices::Greens 3", my_direction = -1)
+
+ggsave(plot = t2_plot$world, filename = "output/figures/npmid.concepts_children.world.png", width = 5, height = 12, units = "in", dpi = 600)
+ggsave(plot = t2_plot$greece, filename = "output/figures/npmid.concepts_children.children.png", width = 4.5, height = 10.5, units = "in", dpi = 600)
+
+writexl::write_xlsx(t2$world$tables, "output/concepts_children.world.xlsx")
+writexl::write_xlsx(t2$greece$tables, "output/concepts_children.greece.xlsx")
 
 
 # 3 ----------------------
 
-d3 <- d1[, c("doi", "pmid", "year", "MeSH terms"), with = FALSE] |> unique()
+t3      <- list()
+t3_plot <- list()
+
+t3[["world"]]  <- analyse_mesh_terms(world)
+t3[["greece"]] <- analyse_mesh_terms(greece)
+
+t3_plot[["world"]]  <- plot_mesh_terms(t3$world$filtered, my_palette = "ggthemes::Red-Blue Diverging", my_direction = -1)
+t3_plot[["greece"]] <- plot_mesh_terms(t3$greece$filtered, my_palette = "grDevices::Greens 3", my_direction = -1)
+
+ggsave(plot = t3_plot$world, filename = "output/figures/npmid.mesh_terms.world.png", width = 6, height = 12, units = "in", dpi = 600)
+ggsave(plot = t3_plot$greece, filename = "output/figures/npmid.mesh_terms.greece.png", width = 5, height = 11, units = "in", dpi = 600)
+
+writexl::write_xlsx(t3$world$tables, "output/mesh_terms.world.xlsx")
+writexl::write_xlsx(t3$greece$tables, "output/mesh_terms.greece.xlsx")
+
+# multi-plot -----------
+
+t3$world$filtered$condition <- "world"
+t3$greece$filtered$condition <- "greece"
 
 
-t1 <- d3$`MeSH terms` |> 
-    str_split("\\;") |>
-    lapply(str_squish) |>
-    lapply(function(x) data.table("MeSH term" = x)) |>
-    rbindlist(idcol = "id")
+df <- rbind(t3$world$filtered, t3$greece$filtered)
+
+df$fsample <- paste0(df$year, "_", df$condition)
+
+fmeta <- df[, c("condition", "fsample"), with = FALSE] |> unique()
 
 
-d3 <- cbind(d3[t1$id, -c("MeSH terms")], t1[, -1])
+df <- df |> dcast(`MeSH term` ~ fsample, value.var = "freq_pmid", fill = 0)
 
-d3 <- d3[, by = .(year, `MeSH term`), .(
-    n_doi = doi |> unique() |> length(),
-    n_pmid = pmid |> unique() |> length()
-)]
+df$`MeSH term` <- df$`MeSH term` |> as.character()
 
-writexl::write_xlsx(
-    list(
-        "No. of pmid" = d3 |> dcast(`MeSH term` ~ year, value.var = "n_pmid", fill = 0),
-        "No. of doi"  = d3 |> dcast(`MeSH term` ~ year, value.var = "n_doi", fill = 0)
-    ), 
-    "output/MeSH_terms.xlsx"
+mm <- df[, fmeta$fsample, with = FALSE] |> setDF(rownames = df$`MeSH term`) |> as.matrix()
+
+zm <- mm |> t() |> scale(center = TRUE, scale = TRUE) |> t()
+
+library(ComplexHeatmap)
+library(circlize)
+
+
+
+
+ht <- Heatmap(
+    zm, name = "z-score", 
+    
+    clustering_distance_rows = "pearson",
+    clustering_method_rows = "ward.D2",
+    
+    rect_gp = gpar(col = "grey", lwd = .25),
+    border = TRUE,
+    
+    cluster_columns = FALSE,
+    
+    column_split = fmeta$condition,
+    
+    row_names_gp = gpar(fontsize = 5),
+    column_names_gp = gpar(fontsize = 6)
 )
 
-t2 <- d3[, by = `MeSH term`, .(
-    cumn_doi = n_doi |> sum(),
-    cumn_pmid = n_pmid |> sum()
-)]
+grob = grid.grabExpr(draw(ht)) |> as.ggplot()
 
-t2 <- t2[which(cumn_pmid >= 20)]
+library(ggplotify)
 
-d3 <- d3[which(`MeSH term` %in% t2$`MeSH term`)]
-
-mm <- d3 |> dcast(`MeSH term` ~ year, value.var = "n_pmid", fill = 0)
-
-ht <- mm[, -1] |> 
-    setDF(rownames = mm$`MeSH term`) |> 
-    as.matrix() |> 
-    dist(method = "euclidean") |> 
-    hclust(method = "ward.D2")
-
-d3$term <- d3$`MeSH term` |> factor(levels = ht$labels[ht$order])
-
-gr3 <- d3 |>
-    ggplot(aes(year, term)) +
-    
-    geom_vline(xintercept = seq(1999.5, 2019.5, by = 1), color = "grey85", linewidth = .15) +
-    geom_hline(yintercept = seq(.5, nrow(t2) + .5, by = 1), color = "grey85", linewidth = .15) +
-    
-    geom_tile(aes(fill = n_pmid), color = "grey75", linewidth = .15) +
-    
-    scale_fill_stepsn(
-        colors = c('#00429d', '#5681b9', '#93c4d2', '#ffa59e', '#dd4c65', '#93003a'),
-        transform = "log2", breaks = c(4, 8, 16, 32, 64),
-        
-        guide = guide_colorsteps(
-            barheight = unit(16, "lines"),
-            barwidth = unit(.5, "lines")
-        )
-    ) +
-    
-    scale_x_continuous(expand = c(0, 0), breaks = seq(2002, 2024, by = 4)) +
-    scale_y_discrete(expand = c(0, 0)) +
-    
-    theme_minimal() +
-    
-    theme(
-        axis.text.y = element_text(size = 6),
-        
-        panel.grid = element_blank(),
-        
-        axis.title = element_blank()
-    )
-
-
-ggsave(
-    plot = gr3, filename = "output/figures/n_pmid.mesh_terms.png",
-    width = 6, height = 12, units = "in", dpi = 600
-)
-
-
-# patchwork -----------
-
-multi <- (gr2 | gr3) &
-    theme(
-        plot.margin = margin(10, 10, 10, 10)
-    )
-
-
-ggsave(
-    plot = multi, filename = "output/figures/multi-plot.png",
-    width = 11, height = 11, units = "in", dpi = 600
-)
-
-
-
-
-
-
-
+ggsave(plot = grob, filename = "output/figures/comparison.png", width = 7, height = 12, units = "in", dpi = 600)
 
 
