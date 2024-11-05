@@ -1,171 +1,147 @@
 
 
+
+
 rm(list = ls())
 gc()
 
-# load libraries ------------------------
+
+# load libraries ------------------
 
 library(data.table)
 library(stringr)
 
-# read input table -------------------
+library(ggplot2)
 
-df = "data/terms/terms.csv" |> fread()
+library(ggnewscale)
+library(colorspace)
 
-df$V1 = NULL
+library(paletteer)
 
-# filter dates -------------
+source("R/helpers.R")
 
-df = df[which(year >= 2000)]
+# load data ----------------
 
-# split terms -----------------------
 
-x = df$terms |>
-    str_split("\\,") |>
-    lapply(function(q) data.table("term" = q)) |>
-    rbindlist(idcol = "id")
+d0 <- "data/clean-data.tsv" |> fread(sep = "\t", fill = TRUE, quote = "")
 
-x$doi  = df[x$id]$doi
-x$year = df[x$id]$year
+# filtering ---------------
 
-rm(df)
+d1 <- d0[which(!is.na(`MeSH IDs`) & `MeSH IDs` != "")]
+d1 <- d1[which(year >= 2000)]
+
+d1$year <- d1$year |> as.numeric()
+
+rm(d0)
 gc()
 
-# clean terms ---------------------------
+index <- d1$countries |> str_detect("GR") |> which()
 
-x$term = x$term |> 
-    str_squish() |> 
-    str_remove_all("\\[|\\]") |>
-    str_remove_all("\\{|\\}") |>
-    str_split_i("\\:", 1) |>
-    str_sub(2, -2)
+greece <- d1[index]
+world  <- d1[-index]
+
+rm(index)
+
+# 1 -----------------------
+
+t1      <- list()
+t1_plot <- list()
+
+t1[["world"]]  <- analyse_concepts(world)
+t1[["greece"]] <- analyse_concepts(greece)
+
+t1_plot[["world"]]  <- plot_concepts(t1$world$original)
+t1_plot[["greece"]] <- plot_concepts(t1$greece$original)
+
+ggsave(plot = t1_plot$world, filename = "output/figures/npmid.concepts.world.png", width = 8, height = 8, units = "in", dpi = 600)
+ggsave(plot = t1_plot$greece, filename = "output/figures/npmid.concepts.greece.png", width = 8, height = 8, units = "in", dpi = 600)
+
+writexl::write_xlsx(t1$world$tables, "output/concepts.world.xlsx")
+writexl::write_xlsx(t1$greece$tables, "output/concepts.greece.xlsx")
+
+# 2 ---------------------
+
+t2      <- list()
+t2_plot <- list()
+
+t2[["world"]]  <- analyse_concepts_children(world)
+t2[["greece"]] <- analyse_concepts_children(greece)
+
+t2_plot[["world"]]  <- plot_concepts_children(t2$world$filtered, my_palette = "ggthemes::Red-Blue Diverging", my_direction = -1)
+t2_plot[["greece"]] <- plot_concepts_children(t2$greece$filtered, my_palette = "grDevices::Greens 3", my_direction = -1)
+
+ggsave(plot = t2_plot$world, filename = "output/figures/npmid.concepts_children.world.png", width = 5, height = 12, units = "in", dpi = 600)
+ggsave(plot = t2_plot$greece, filename = "output/figures/npmid.concepts_children.children.png", width = 4.5, height = 10.5, units = "in", dpi = 600)
+
+writexl::write_xlsx(t2$world$tables, "output/concepts_children.world.xlsx")
+writexl::write_xlsx(t2$greece$tables, "output/concepts_children.greece.xlsx")
 
 
-x$term_clean = x$term |> str_to_lower()
+# 3 ----------------------
 
-# life science glossary --------------------
+t3      <- list()
+t3_plot <- list()
 
-source("R/life_science_glossary.R")
+t3[["world"]]  <- analyse_mesh_terms(world)
+t3[["greece"]] <- analyse_mesh_terms(greece)
 
-w = life_science_glossary("data/glossary/")
+t3_plot[["world"]]  <- plot_mesh_terms(t3$world$filtered, my_palette = "ggthemes::Red-Blue Diverging", my_direction = -1)
+t3_plot[["greece"]] <- plot_mesh_terms(t3$greece$filtered, my_palette = "grDevices::Greens 3", my_direction = -1)
 
-y = x[which(term_clean %in% w)]
-y = x[which(doi %in% y$doi)]
+ggsave(plot = t3_plot$world, filename = "output/figures/npmid.mesh_terms.world.png", width = 6, height = 12, units = "in", dpi = 600)
+ggsave(plot = t3_plot$greece, filename = "output/figures/npmid.mesh_terms.greece.png", width = 5, height = 11, units = "in", dpi = 600)
 
-y$tag = ifelse(y$term_clean %in% w, "life_sciences", "other")
+writexl::write_xlsx(t3$world$tables, "output/mesh_terms.world.xlsx")
+writexl::write_xlsx(t3$greece$tables, "output/mesh_terms.greece.xlsx")
 
-rm(w, life_science_glossary)
+# multi-plot -----------
 
-# find trends --------------------------------
+t3$world$filtered$condition <- "world"
+t3$greece$filtered$condition <- "greece"
 
-z = y[, by = .(year, term_clean, tag), .(N = id |> unique() |> length())]
 
-z = z[order(year, -N)]
+df <- rbind(t3$world$filtered, t3$greece$filtered)
 
-z = z |> split(z$tag)
+df$fsample <- paste0(df$year, "_", df$condition)
 
-plot_trends <- function(q) {
+fmeta <- df[, c("condition", "fsample"), with = FALSE] |> unique()
+
+
+df <- df |> dcast(`MeSH term` ~ fsample, value.var = "freq_pmid", fill = 0)
+
+df$`MeSH term` <- df$`MeSH term` |> as.character()
+
+mm <- df[, fmeta$fsample, with = FALSE] |> setDF(rownames = df$`MeSH term`) |> as.matrix()
+
+zm <- mm |> t() |> scale(center = TRUE, scale = TRUE) |> t()
+
+library(ComplexHeatmap)
+library(circlize)
+
+
+
+
+ht <- Heatmap(
+    zm, name = "z-score", 
     
-    library(ggplot2)
-    library(paletteer)
+    clustering_distance_rows = "pearson",
+    clustering_method_rows = "ward.D2",
     
-    tag = q$tag |> unique()
+    rect_gp = gpar(col = "grey", lwd = .25),
+    border = TRUE,
     
-    q1 = q[, by = term_clean, .(N = N |> sum())]
+    cluster_columns = FALSE,
     
-    q1 = q1[order(-N)]
+    column_split = fmeta$condition,
     
-    q1 = q1 |> head(10)
-    
-    q2 = q[which(term_clean %in% q1$term_clean)]
-    q3 = q[which(!(term_clean %in% q1$term_clean))]
-    
-    gr = ggplot() +
-        
-        geom_line(data = q3, aes(year, N, group = term_clean), color = "grey") +
-        
-        geom_line(data = q2, aes(year, N, group = term_clean, color = term_clean)) +
-        
-        scale_y_continuous(labels = scales::comma) +
-        
-        scale_color_manual(values = paletteer_d("ggsci::hallmarks_light_cosmic")) +
-        
-        theme_minimal() +
-        
-        theme(
-            legend.position = "right",
-            legend.title = element_blank()
-        ) +
-        
-        labs(
-            y = "Number of research papers",
-            title = tag
-        )
-    
-    return(gr)
-    
-}
-
-
-gr1 = plot_trends(z$life_sciences)
-gr2 = plot_trends(z$other)
-
-library(patchwork)
-
-
-multi = gr1 / gr2
-
-ggsave(
-    plot = multi, filename = "Rplot.pdf", device = cairo_pdf,
-    width = 10, height = 10, units = "in"
+    row_names_gp = gpar(fontsize = 5),
+    column_names_gp = gpar(fontsize = 6)
 )
 
+grob = grid.grabExpr(draw(ht)) |> as.ggplot()
 
-# x$value = 1
-# 
-# 
-# y = x[which(year == 2024)] |> dcast(term_clean ~ id, value.var = "value", fill = 0)
-# 
-# m = y[, 2:ncol(y)] |> setDF(rownames = y$term_clean)
-# 
-# t = m |> prcomp(center = TRUE, scale. = TRUE)
-# 
-# 
-# library(ggplot2)
-# 
-# t$x |> 
-#     ggplot(aes(PC4, PC5)) + 
-#     geom_point() + 
-#     scale_x_continuous(transform = scales::pseudo_log_trans(base = 10)) +
-#     scale_y_continuous(transform = scales::pseudo_log_trans(base = 10))
+library(ggplotify)
 
-
-
-
-
-# y = x[, by = term, .(N = id |> unique() |> length())]
-
-# bio_terms = paste(
-#     sep = "|",
-#     "sequence",
-#     "genomics|biology|bioinformatics",
-#     "immuno|microbiome|virus|genome|genomic",
-#     "pharma"
-# )
-# 
-# y = x[which(str_detect(term_clean, bio_terms))]
-# 
-# 100 * (y$id |> unique() |> length()) / (x$id |> unique() |> length())
-# 
-# y$term_clean |> unique()
-
-
-
-
-
-
-
-
-
+ggsave(plot = grob, filename = "output/figures/comparison.png", width = 7, height = 12, units = "in", dpi = 600)
 
 
