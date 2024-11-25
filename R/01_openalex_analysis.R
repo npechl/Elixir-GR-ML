@@ -9,13 +9,14 @@ library(stringr)
 
 # load data -------------------------
 
-d0 <- fread("data/openalex/output_openalex-affil")
+d0 <- fread("input/output_openalex-affil")
 
 # filter `GR` ------------------
 
 # index <- d0$countries |> str_detect("GR")
 
-d1 <- d0 # [index]
+d1 <- d0[order(year, pmid)]
+d1 <- d1[which(year >= 2000)]
 
 # split concepts ---------------
  
@@ -66,11 +67,16 @@ t2$concepts_children <- NULL
 
 # load mesh terms ------------------
 
-m0 <- fread("data/mesh/MeSH from PMID result.csv")
+m0 <- fread("input/MeSH from PMID result_v2.csv")
 
 # merge mesh terms -------------------------------
 
 d2 = cbind(t2, m0[match(t2$pmid, m0$pmid), -1])
+
+dp = cbind(d1, m0[match(d1$pmid, m0$pmid), -1])
+
+dp <- dp[which(`MeSH terms` == "")]
+dp <- dp[which(countries != "")]
 
 # clean environment ---------
 
@@ -83,7 +89,8 @@ d2 <- d2[order(year, pmid, doi, -concepts_score, -concepts_children_score)]
 
 # writexl::write_xlsx(d2, "data/clean-data.xlsx")
 
-fwrite(d2, "data/clean-data.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+fwrite(d2, "input/clean-data.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+fwrite(dp, "input/missingMESH.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
 
 
 

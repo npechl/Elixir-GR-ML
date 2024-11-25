@@ -23,11 +23,11 @@ source("R/helpers.R")
 # load data ----------------
 
 
-d0 <- "data/clean-data.tsv" |> fread(sep = "\t", fill = TRUE, quote = "")
+d0 <- "input/clean-data.tsv" |> fread(sep = "\t", fill = TRUE, quote = "")
 
 # filtering ---------------
 
-d1 <- d0[which(!is.na(`MeSH IDs`) & `MeSH IDs` != "")]
+d1 <- d0[which(!is.na(`MeSH terms`) & `MeSH terms` != "")]
 d1 <- d1[which(year >= 2000)]
 
 d1$year <- d1$year |> as.numeric()
@@ -138,9 +138,10 @@ ht <- Heatmap(
     column_names_gp = gpar(fontsize = 6)
 )
 
+library(ggplotify)
 grob = grid.grabExpr(draw(ht)) |> as.ggplot()
 
-library(ggplotify)
+
 
 ggsave(plot = grob, filename = "output/figures/comparison.png", width = 7, height = 12, units = "in", dpi = 600)
 
