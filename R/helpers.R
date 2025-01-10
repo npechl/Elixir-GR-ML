@@ -136,47 +136,53 @@ plot_concepts_children <- function(x, my_palette, my_direction = 1) {
 
 # MeSH terms -----------------------
 
-analyse_mesh_terms <- function(x, my_filter = .001) {
+analyse_mesh_terms <- function(x, mesh, level = 1, my_filter = .001) {
     
-    d3 <- x[, c("doi", "pmid", "year", "MeSH terms"), with = FALSE] |> unique()
+    d3 <- x[, c("doi", "pmid", "year", "MeSH IDs"), with = FALSE] |> unique()
     
-    t1 <- d3$`MeSH terms` |> 
-        str_split("\\;") |>
+    t1 <- d3$`MeSH IDs` |> 
+        str_split("\\,") |>
         lapply(str_squish) |>
-        lapply(function(x) data.table("MeSH term" = x)) |>
+        lapply(function(x) data.table("MeSH ID" = x)) |>
         rbindlist(idcol = "id")
     
     
-    d3 <- cbind(d3[t1$id, -c("MeSH terms")], t1[, -1])
+    d3 <- cbind(d3[t1$id, -c("MeSH IDs")], t1[, -1])
     
-    d3 <- d3[, by = .(year, `MeSH term`), .(
+    
+    t1 <- search_mesh(mesh, d3$`MeSH ID`, level)
+    
+    d3 <- d3 |> merge(t1, by.x = "MeSH ID", by.y = "query_id", all.y = TRUE, allow.cartesian = TRUE)
+    
+    
+    d3 <- d3[, by = .(year, result_name), .(
         n_doi = doi |> unique() |> length(),
         n_pmid = pmid |> unique() |> length()
     )]
     
     
-    t2 <- d3[, by = `MeSH term`, .(cumn_pmid = n_pmid |> sum())]
+    t2 <- d3[, by = result_name, .(cumn_pmid = n_pmid |> sum())]
     t2 <- t2[order(-cumn_pmid)]
     
-    d3$`MeSH term` <- d3$`MeSH term` |> factor(levels = t2$`MeSH term`)
+    d3$result_name <- d3$result_name |> factor(levels = t2$result_name)
     
     o1 <- list(
-        "No. of pmid" = d3 |> dcast(`MeSH term` ~ year, value.var = "n_pmid", fill = 0),
-        "No. of doi"  = d3 |> dcast(`MeSH term` ~ year, value.var = "n_doi", fill = 0)
+        "No. of pmid" = d3 |> dcast(result_name ~ year, value.var = "n_pmid", fill = 0),
+        "No. of doi"  = d3 |> dcast(result_name ~ year, value.var = "n_doi", fill = 0)
     )
     
     
     d3$freq_doi <- d3$n_doi / sum(d3$n_doi)
     d3$freq_pmid <- d3$n_pmid / sum(d3$n_pmid)
     
-    t2 <- d3[, by = `MeSH term`, .(
+    t2 <- d3[, by = result_name, .(
         cumfreq_doi = freq_doi |> sum(),
         cumfreq_pmid = freq_pmid |> sum()
     )]
     
     t2 <- t2[which(cumfreq_pmid >= my_filter)]
     
-    d3 <- d3[which(`MeSH term` %in% t2$`MeSH term`)]
+    d3 <- d3[which(result_name %in% t2$result_name)]
     
     return(list("tables" = o1, "filtered" = d3))
     
@@ -184,17 +190,17 @@ analyse_mesh_terms <- function(x, my_filter = .001) {
 
 plot_mesh_terms <- function(x, my_palette, my_direction = 1) {
     
-    x$`MeSH term` <- x$`MeSH term` |> as.character()
+    x$result_name <- x$result_name |> as.character()
     
-    mm <- x |> dcast(`MeSH term` ~ year, value.var = "n_pmid", fill = 0)
+    mm <- x |> dcast(result_name ~ year, value.var = "n_pmid", fill = 0)
     
     ht <- mm[, -1] |> 
-        setDF(rownames = mm$`MeSH term`) |> 
+        setDF(rownames = mm$result_name) |> 
         as.matrix() |> 
         dist(method = "euclidean") |> 
         hclust(method = "ward.D2")
     
-    x$term <- x$`MeSH term` |> factor(levels = ht$labels[ht$order])
+    x$term <- x$result_name |> factor(levels = ht$labels[ht$order])
     
     o2 <- x |>
         ggplot(aes(year, term)) +

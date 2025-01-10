@@ -9,7 +9,7 @@ library(stringr)
 
 # load data -------------------------
 
-d0 <- fread("input/output_openalex-affil")
+d0 <- fread("data/openalex/output_openalex-affil")
 
 # filter `GR` ------------------
 
@@ -64,10 +64,13 @@ t2$concepts_children <- NULL
 # t2$concepts_name |> unique()
 # t2$concepts_children_name |> unique()
 
+# clean RAM -----------------
+
+gc()
 
 # load mesh terms ------------------
 
-m0 <- fread("input/MeSH from PMID result_v2.csv")
+m0 <- fread("data/mesh/MeSH from PMID result.csv")
 
 # merge mesh terms -------------------------------
 
@@ -80,7 +83,7 @@ dp <- dp[which(countries != "")]
 
 # clean environment ---------
 
-rm(d1, m0, t1, t2, index)
+rm(d1, m0, t1, t2)
 gc()
 
 # print clean document ------------
@@ -89,8 +92,8 @@ d2 <- d2[order(year, pmid, doi, -concepts_score, -concepts_children_score)]
 
 # writexl::write_xlsx(d2, "data/clean-data.xlsx")
 
-fwrite(d2, "input/clean-data.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
-fwrite(dp, "input/missingMESH.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+fwrite(d2, "data/clean-data.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+fwrite(dp, "data/missingMESH.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
 
 
 
