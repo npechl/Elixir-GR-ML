@@ -138,16 +138,16 @@ plot_concepts_children <- function(x, my_palette, my_direction = 1) {
 
 analyse_mesh_terms <- function(x, mesh, level = 1, my_filter = .001) {
     
-    d3 <- x[, c("doi", "pmid", "year", "MeSH IDs"), with = FALSE] |> unique()
+    d3 <- x[, c("doi", "pmid", "year", "MeSH ID"), with = FALSE] |> unique()
     
-    t1 <- d3$`MeSH IDs` |> 
-        str_split("\\,") |>
-        lapply(str_squish) |>
-        lapply(function(x) data.table("MeSH ID" = x)) |>
-        rbindlist(idcol = "id")
-    
-    
-    d3 <- cbind(d3[t1$id, -c("MeSH IDs")], t1[, -1])
+    # t1 <- d3$`MeSH IDs` |> 
+    #     str_split("\\,") |>
+    #     lapply(str_squish) |>
+    #     lapply(function(x) data.table("MeSH ID" = x)) |>
+    #     rbindlist(idcol = "id")
+    # 
+    # 
+    # d3 <- cbind(d3[t1$id, -c("MeSH IDs")], t1[, -1])
     
     
     t1 <- search_mesh(mesh, d3$`MeSH ID`, level)

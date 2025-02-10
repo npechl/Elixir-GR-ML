@@ -1,11 +1,5 @@
 
 
-
-
-rm(list = ls())
-gc()
-
-
 # load libraries ------------------
 
 library(data.table)
@@ -24,7 +18,13 @@ source("R/mesh_terms.R")
 # load data ----------------
 
 
-d0 <- "data/clean-data.tsv" |> fread(sep = "\t", fill = TRUE, quote = "")
+# d0 <- "data/clean-data.tsv" |> fread(sep = "\t", fill = TRUE, quote = "")
+
+d1 <- fread("./data/clean-concepts.tsv")
+d2 <- fread("./data/clean-concepts-childrean.tsv")
+d3 <- fread("./data/clean-mesh.tsv", sep = "\t", quote = "")
+
+mesh <- read_mesh("./data/mesh/desc2024_TN.csv")
 
 # output folders ----------------------
 
@@ -35,22 +35,24 @@ dir.create("output/figures/png", showWarnings = FALSE)
 
 # filtering ---------------
 
-d1 <- d0[which(!is.na(`MeSH terms`) & `MeSH terms` != "")]
-d1 <- d1[which(year >= 2000)]
+# d1 <- d0[which(!is.na(`MeSH terms`) & `MeSH terms` != "")]
+# d1 <- d1[which(year >= 2000)]
+# 
+# d1$year <- d1$year |> as.numeric()
+# 
+# rm(d0)
+# gc()
 
-d1$year <- d1$year |> as.numeric()
 
-rm(d0)
-gc()
+index_1 <- d1$countries |> str_detect("GR") |> which()
+index_2 <- d2$countries |> str_detect("GR") |> which()
+index_3 <- d3$countries |> str_detect("GR") |> which()
 
-index <- d1$countries |> str_detect("GR") |> which()
+# Open Alex - Concepts analysis -----------------------
 
-greece <- d1[index]
-world  <- d1[-index]
 
-rm(index)
-
-# 1 -----------------------
+world  <- d1[-index_1]
+greece <- d1[index_1]
 
 t1      <- list()
 t1_plot <- list()
@@ -67,7 +69,10 @@ ggsave(plot = t1_plot$greece, filename = "output/figures/png/npmid-concepts-gree
 writexl::write_xlsx(t1$world$tables, "output/tables/concepts-world.xlsx")
 writexl::write_xlsx(t1$greece$tables, "output/tables/concepts-greece.xlsx")
 
-# 2 ---------------------
+# Open Alex - Concepts Children analysis ---------------------
+
+world  <- d2[-index_2]
+greece <- d2[index_2]
 
 t2      <- list()
 t2_plot <- list()
@@ -85,32 +90,49 @@ writexl::write_xlsx(t2$world$tables, "output/tables/concepts_children-world.xlsx
 writexl::write_xlsx(t2$greece$tables, "output/tables/concepts_children-greece.xlsx")
 
 
-# 3 ----------------------
+# MeSH term analysis ----------------------
+
+world  <- d3[-index_3]
+greece <- d3[index_3]
 
 t3      <- list()
 t3_plot <- list()
 
-mesh <- read_mesh("data/mesh/desc2024_TN.csv")
-
-t3[["world"]]  <- analyse_mesh_terms(world, mesh, level = 1)
-t3[["greece"]] <- analyse_mesh_terms(greece, mesh, level = 1)
+t3[["world"]]  <- analyse_mesh_terms(world, mesh, level = 2)
+t3[["greece"]] <- analyse_mesh_terms(greece, mesh, level = 2)
 
 t3_plot[["world"]]  <- plot_mesh_terms(t3$world$filtered, my_palette = "ggthemes::Red-Blue Diverging", my_direction = -1)
 t3_plot[["greece"]] <- plot_mesh_terms(t3$greece$filtered, my_palette = "grDevices::Greens 3", my_direction = -1)
 
-ggsave(plot = t3_plot$world, filename = "output/figures/png/npmid-mesh_terms-world.png", width = 8, height = 10, units = "in", dpi = 600)
-ggsave(plot = t3_plot$greece, filename = "output/figures/png/npmid-mesh_terms-greece.png", width = 8, height = 10, units = "in", dpi = 600)
+ggsave(plot = t3_plot$world, filename = "output/figures/png/npmid-mesh_terms-world.png", width = 8, height = 12, units = "in", dpi = 600)
+ggsave(plot = t3_plot$greece, filename = "output/figures/png/npmid-mesh_terms-greece.png", width = 8, height = 12, units = "in", dpi = 600)
 
 writexl::write_xlsx(t3$world$tables, "output/tables/mesh_terms-world.xlsx")
 writexl::write_xlsx(t3$greece$tables, "output/tables/mesh_terms-greece.xlsx")
 
-# multi-plot -----------
+## Staistics + multi-plot -----------------------------------
 
 t3$world$filtered$condition <- "world"
 t3$greece$filtered$condition <- "greece"
 
-
 df <- rbind(t3$world$filtered, t3$greece$filtered)
+
+df <- df[which(year <= 2019)]
+
+library(rstatix)
+
+stats <- df |> 
+    dcast(year + result_name ~ condition, value.var = "freq_pmid", fill = 0) |>
+    melt(id.vars = c("year", "result_name"), value.factor = FALSE, variable.factor = FALSE) 
+
+stats <- stats[order(result_name, variable, year)]
+
+stats <- stats |>
+    group_by(result_name) |>
+    pairwise_wilcox_test(value ~ variable, paired = TRUE, detailed = TRUE) |>
+    setDT()
+
+writexl::write_xlsx(stats, "output/tables/stats.xlsx")
 
 df$fsample <- paste0(df$year, "_", df$condition)
 
@@ -136,7 +158,7 @@ library(circlize)
 ht <- Heatmap(
     zm, name = "z-score", 
     
-    clustering_distance_rows = "pearson",
+    clustering_distance_rows = "euclidean",
     clustering_method_rows = "ward.D2",
     
     rect_gp = gpar(col = "grey", lwd = .25),
@@ -146,7 +168,7 @@ ht <- Heatmap(
     
     column_split = fmeta$condition,
     
-    row_names_gp = gpar(fontsize = 5),
+    row_names_gp = gpar(fontsize = 6),
     column_names_gp = gpar(fontsize = 6)
 )
 
@@ -155,6 +177,6 @@ grob = grid.grabExpr(draw(ht)) |> as.ggplot()
 
 
 
-ggsave(plot = grob, filename = "output/figures/png/comparison.png", width = 8, height = 10, units = "in", dpi = 600)
+ggsave(plot = grob, filename = "output/figures/png/comparison.png", width = 8, height = 16, units = "in", dpi = 600)
 
 
