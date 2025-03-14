@@ -20,11 +20,13 @@ source("R/mesh_terms.R")
 
 # d0 <- "data/clean-data.tsv" |> fread(sep = "\t", fill = TRUE, quote = "")
 
-d1 <- fread("./data/clean-concepts.tsv")
-d2 <- fread("./data/clean-concepts-childrean.tsv")
-d3 <- fread("./data/clean-mesh.tsv", sep = "\t", quote = "")
+d1 <- fread("./input/clean-concepts.tsv")
+d2 <- fread("./input/clean-concepts-childrean.tsv")
+d3 <- fread("./input/clean-mesh.tsv", sep = "\t", quote = "")
 
-mesh <- read_mesh("./data/mesh/desc2024_TN.csv")
+d3 <- d3[which(!is.na(`MeSH term`))]
+
+mesh <- read_mesh("./input/desc2024_TN.csv")
 
 # output folders ----------------------
 
@@ -60,11 +62,11 @@ t1_plot <- list()
 t1[["world"]]  <- analyse_concepts(world)
 t1[["greece"]] <- analyse_concepts(greece)
 
-t1_plot[["world"]]  <- plot_concepts(t1$world$original)
-t1_plot[["greece"]] <- plot_concepts(t1$greece$original)
-
-ggsave(plot = t1_plot$world, filename = "output/figures/png/npmid-concepts-world.png", width = 8, height = 8, units = "in", dpi = 600)
-ggsave(plot = t1_plot$greece, filename = "output/figures/png/npmid-concepts-greece.png", width = 8, height = 8, units = "in", dpi = 600)
+# t1_plot[["world"]]  <- plot_concepts(t1$world$original)
+# t1_plot[["greece"]] <- plot_concepts(t1$greece$original)
+# 
+# ggsave(plot = t1_plot$world, filename = "output/figures/png/npmid-concepts-world.png", width = 8, height = 8, units = "in", dpi = 600)
+# ggsave(plot = t1_plot$greece, filename = "output/figures/png/npmid-concepts-greece.png", width = 8, height = 8, units = "in", dpi = 600)
 
 writexl::write_xlsx(t1$world$tables, "output/tables/concepts-world.xlsx")
 writexl::write_xlsx(t1$greece$tables, "output/tables/concepts-greece.xlsx")
@@ -77,14 +79,14 @@ greece <- d2[index_2]
 t2      <- list()
 t2_plot <- list()
 
-t2[["world"]]  <- analyse_concepts_children(world)
-t2[["greece"]] <- analyse_concepts_children(greece)
+t2[["world"]]  <- analyse_concepts_children(world, my_filter = 0)
+t2[["greece"]] <- analyse_concepts_children(greece, my_filter = 0)
 
-t2_plot[["world"]]  <- plot_concepts_children(t2$world$filtered, my_palette = "ggthemes::Red-Blue Diverging", my_direction = -1)
-t2_plot[["greece"]] <- plot_concepts_children(t2$greece$filtered, my_palette = "grDevices::Greens 3", my_direction = -1)
-
-ggsave(plot = t2_plot$world, filename = "output/figures/png/npmid-concepts_children-world.png", width = 5, height = 12, units = "in", dpi = 600)
-ggsave(plot = t2_plot$greece, filename = "output/figures/png/npmid-concepts_children-greece.png", width = 4.5, height = 10.5, units = "in", dpi = 600)
+# t2_plot[["world"]]  <- plot_concepts_children(t2$world$filtered, my_palette = "ggthemes::Red-Blue Diverging", my_direction = -1)
+# t2_plot[["greece"]] <- plot_concepts_children(t2$greece$filtered, my_palette = "grDevices::Greens 3", my_direction = -1)
+# 
+# ggsave(plot = t2_plot$world, filename = "output/figures/png/npmid-concepts_children-world.png", width = 5, height = 12, units = "in", dpi = 600)
+# ggsave(plot = t2_plot$greece, filename = "output/figures/png/npmid-concepts_children-greece.png", width = 4.5, height = 10.5, units = "in", dpi = 600)
 
 writexl::write_xlsx(t2$world$tables, "output/tables/concepts_children-world.xlsx")
 writexl::write_xlsx(t2$greece$tables, "output/tables/concepts_children-greece.xlsx")
@@ -92,20 +94,26 @@ writexl::write_xlsx(t2$greece$tables, "output/tables/concepts_children-greece.xl
 
 # MeSH term analysis ----------------------
 
+index <- match(d3$`MeSH term`, mesh$`Descriptor Name`)
+
+d3$`MeSH ID` <- mesh[index]$`Descriptor UI`
+
+
+
 world  <- d3[-index_3]
 greece <- d3[index_3]
 
 t3      <- list()
 t3_plot <- list()
 
-t3[["world"]]  <- analyse_mesh_terms(world, mesh, level = 2)
-t3[["greece"]] <- analyse_mesh_terms(greece, mesh, level = 2)
+t3[["world"]]  <- analyse_mesh_terms(world, mesh, level = 2, my_filter = 0)
+t3[["greece"]] <- analyse_mesh_terms(greece, mesh, level = 2, my_filter = 0)
 
-t3_plot[["world"]]  <- plot_mesh_terms(t3$world$filtered, my_palette = "ggthemes::Red-Blue Diverging", my_direction = -1)
-t3_plot[["greece"]] <- plot_mesh_terms(t3$greece$filtered, my_palette = "grDevices::Greens 3", my_direction = -1)
-
-ggsave(plot = t3_plot$world, filename = "output/figures/png/npmid-mesh_terms-world.png", width = 8, height = 12, units = "in", dpi = 600)
-ggsave(plot = t3_plot$greece, filename = "output/figures/png/npmid-mesh_terms-greece.png", width = 8, height = 12, units = "in", dpi = 600)
+# t3_plot[["world"]]  <- plot_mesh_terms(t3$world$filtered, my_palette = "ggthemes::Red-Blue Diverging", my_direction = -1)
+# t3_plot[["greece"]] <- plot_mesh_terms(t3$greece$filtered, my_palette = "grDevices::Greens 3", my_direction = -1)
+# 
+# ggsave(plot = t3_plot$world, filename = "output/figures/png/npmid-mesh_terms-world.png", width = 8, height = 12, units = "in", dpi = 600)
+# ggsave(plot = t3_plot$greece, filename = "output/figures/png/npmid-mesh_terms-greece.png", width = 8, height = 12, units = "in", dpi = 600)
 
 writexl::write_xlsx(t3$world$tables, "output/tables/mesh_terms-world.xlsx")
 writexl::write_xlsx(t3$greece$tables, "output/tables/mesh_terms-greece.xlsx")

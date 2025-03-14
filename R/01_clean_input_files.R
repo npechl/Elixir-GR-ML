@@ -61,9 +61,9 @@ d1 <- cbind(d1, m0[match(d1$pmid, m0$pmid), -1])
 d1 <- d1[, c("doi", "pmid", "year", "countries", "title", "MeSH terms", "MeSH IDs"), with = FALSE] |> unique()
 
 ta <- d1$`MeSH terms` |> str_split("\\;") |> lapply(str_squish) |> lapply(function(x) data.table("MeSH term" = x)) |> rbindlist(idcol = "id")
-tb <- d1$`MeSH IDs` |> str_split("\\,") |> lapply(str_squish) |> lapply(function(x) data.table("MeSH ID" = x)) |> rbindlist(idcol = "id")
+# tb <- d1$`MeSH IDs` |> str_split("\\,") |> lapply(str_squish) |> lapply(function(x) data.table("MeSH ID" = x)) |> rbindlist(idcol = "id")
 
-t3 <- cbind(d1[ta$id, 1:5], ta[, -1], tb[, -1])
+t3 <- cbind(d1[ta$id, 1:5], ta[, -1])
 
 t3$title <- t3$title |> str_replace_all("\\n", " ") |> str_squish()
 
