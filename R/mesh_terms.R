@@ -27,8 +27,8 @@ search_mesh <- function(mesh_dt, mesh_ids, level = 1) {
     if(level == 0) {
         
         t1$tag <- fifelse(
-            t1$`Descriptor Name` %in% c("Female", "Male"), t1$`Descriptor Name`,
-            t1$tree_id |> str_sub(1, 1)
+            t1$`Descriptor Name` %in% c("Female", "Male"), 
+            t1$`Descriptor Name`, t1$tree_id |> str_sub(1, 1)
         ) 
         
         t1$tag_name <- fcase(
@@ -60,13 +60,7 @@ search_mesh <- function(mesh_dt, mesh_ids, level = 1) {
         
         t1$tag <- t1$tree_id |> 
             str_split("\\.") |> 
-            lapply(function(x) { 
-                
-                # level <- min(level, length(x))
-                
-                x[seq_len(level)] |> paste(collapse = ".")
-                
-            }) |> 
+            lapply(function(x) x[seq_len(level)] |> paste(collapse = ".")) |> 
             unlist()
         
         t1 <- t1 |> merge(mesh_dt, by.x = "tag", by.y = "tree_id")

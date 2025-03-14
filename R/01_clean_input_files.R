@@ -5,9 +5,9 @@
 library(data.table)
 library(stringr)
 
-# load data -------------------------
+# load OPEN ALEX -------------------------
 
-d0 <- fread("./data/openalex/output_openalex-affil")
+d0 <- fread("./input/output_openalex-affil")
 
 # filter entries above 2000 ------------------
 
@@ -51,9 +51,9 @@ t2$concepts_children <- NULL
 
 gc()
 
-# load mesh terms ------------------
+# load MESH terms ------------------
 
-m0 <- fread("./data/mesh/MeSH from PMID result.csv")
+m0 <- fread("./input/MeSH from PMID result_v2.csv")
 
 # merge mesh terms -------------------------------
 
@@ -88,9 +88,9 @@ t3 <- t3[order(year, pmid, doi)]
 # fwrite(d2, "data/clean-data.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
 # fwrite(dp, "data/missingMESH.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
 
-fwrite(t1, "./data/clean-concepts.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
-fwrite(t2, "./data/clean-concepts-childrean.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
-fwrite(t3, "./data/clean-mesh.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+fwrite(t1, "./input/clean-concepts.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+fwrite(t2, "./input/clean-concepts-childrean.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+fwrite(t3, "./input/clean-mesh.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
 
 
 
