@@ -7,7 +7,7 @@ library(stringr)
 
 # load OPEN ALEX -------------------------
 
-d0 <- fread("./input/output_openalex-affil")
+d0 <- fread("./input/openalex/output_openalex-affil.gz")
 
 # filter entries above 2000 ------------------
 
@@ -53,7 +53,7 @@ gc()
 
 # load MESH terms ------------------
 
-m0 <- fread("./input/MeSH from PMID result_v2.csv")
+m0 <- fread("./input/mesh/MeSH from PMID result_v2.csv.gz")
 
 # merge mesh terms -------------------------------
 
@@ -74,7 +74,7 @@ t3$title <- t3$title |> str_replace_all("\\n", " ") |> str_squish()
 
 # clean environment ---------
 
-rm(d1, m0, ta, tb)
+rm(d1, m0, ta)
 gc()
 
 # print clean document ------------
@@ -88,12 +88,16 @@ t3 <- t3[order(year, pmid, doi)]
 # fwrite(d2, "data/clean-data.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
 # fwrite(dp, "data/missingMESH.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
 
-fwrite(t1, "./input/clean-concepts.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
-fwrite(t2, "./input/clean-concepts-childrean.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
-fwrite(t3, "./input/clean-mesh.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+dir.create("./input/clean")
+
+fwrite(t1, "./input/clean/clean-concepts.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+fwrite(t2, "./input/clean/clean-concepts-childrean.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+fwrite(t3, "./input/clean/clean-mesh.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
 
 
-
+R.utils::gzip("./input/clean/clean-concepts.tsv")
+R.utils::gzip("./input/clean/clean-concepts-childrean.tsv")
+R.utils::gzip("./input/clean/clean-mesh.tsv")
 
 
 
