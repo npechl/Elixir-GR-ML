@@ -52,4 +52,4 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
-input/
+input/tmp
