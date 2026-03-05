@@ -8,6 +8,14 @@ library(ggplot2)
 library(ggnewscale)
 library(colorspace)
 
+# library(glmmTMB)
+# library(broom.mixed)
+
+library(MASS)
+library(dplyr)
+library(purrr)
+library(broom)
+
 library(paletteer)
 
 source("./R/helpers.R")
@@ -125,8 +133,8 @@ for (l in c(0, seq_len(2))) {
   # ggsave(plot = t3_plot$world, filename = "output/figures/png/npmid-mesh_terms-world.png", width = 8, height = 12, units = "in", dpi = 600)
   # ggsave(plot = t3_plot$greece, filename = "output/figures/png/npmid-mesh_terms-greece.png", width = 8, height = 12, units = "in", dpi = 600)
 
-  writexl::write_xlsx(t3$world$tables, paste0("output/tables/mesh/mesh-world-level_", l, ".xlsx"))
-  writexl::write_xlsx(t3$greece$tables, paste0("output/tables/mesh/mesh-greece-level_", l, ".xlsx"))
+  # writexl::write_xlsx(t3$world$tables, paste0("output/tables/mesh/mesh-world-level_", l, ".xlsx"))
+  # writexl::write_xlsx(t3$greece$tables, paste0("output/tables/mesh/mesh-greece-level_", l, ".xlsx"))
 
   ## Staistics + multi-plot -----------------------------------
 
@@ -135,22 +143,50 @@ for (l in c(0, seq_len(2))) {
 
   df <- rbind(t3$world$filtered, t3$greece$filtered)
 
-  df <- df[which(year <= 2019)]
+  df <- df[which(year >= 2011 & year <= 2020)]
 
-  library(rstatix)
+  # library(rstatix)
 
   stats <- df |>
-    dcast(year + result_name ~ condition, value.var = "freq_pmid", fill = 0) |>
+    dcast(year + result_name ~ condition, value.var = "n_pmid", fill = 0) |>
     melt(id.vars = c("year", "result_name"), value.factor = FALSE, variable.factor = FALSE)
 
   stats <- stats[order(result_name, variable, year)]
 
-  stats <- stats |>
-    group_by(result_name) |>
-    pairwise_wilcox_test(value ~ variable, paired = TRUE, detailed = TRUE) |>
-    setDT()
+  stats$year_c <- stats$year - min(stats$year)
 
-  writexl::write_xlsx(stats, paste0("output/tables/mesh/stats-level_", l, ".xlsx"))
+
+  results <- stats |>
+  split(~ result_name) |>
+  map_df(function(df) {
+    
+    # keep only terms with both groups
+    if (length(unique(df$variable)) < 2) return(NULL)
+    
+    fit <- glm.nb(value ~ variable * year_c, 
+      data = df)
+    
+    tidy(fit) |>
+      filter(term == "variableworld:year_c") |>
+      mutate(mesh_term = unique(df$result_name))
+  })
+
+  # fit <- glmmTMB(
+  #   value ~ variable * year_c + (year_c | result_name),
+  #   family = nbinom2,
+  #   data = stats
+  # )
+
+  # ranef(fit)$cond$result_name
+
+  # stats <- stats |>
+  #   group_by(result_name) |>
+  #   pairwise_wilcox_test(value ~ variable, paired = TRUE, detailed = TRUE) |>
+  #   setDT()
+
+  results <- results |> setDT()
+
+  writexl::write_xlsx(results, paste0("output/tables/mesh/experiment_2/stats-level_glm_level", l, ".xlsx"))
 
   # df$fsample <- paste0(df$year, "_", df$condition)
   #
