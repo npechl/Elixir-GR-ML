@@ -143,7 +143,7 @@ for (l in c(0, seq_len(2))) {
 
   df <- rbind(t3$world$filtered, t3$greece$filtered)
 
-  df <- df[which(year >= 2011 & year <= 2020)]
+  df <- df[which(year <= 2020)]
 
   # library(rstatix)
 
@@ -185,6 +185,23 @@ for (l in c(0, seq_len(2))) {
   #   setDT()
 
   results <- results |> setDT()
+  
+  
+  results$stats.sign <- ifelse(
+      results$p.value > .05, "ns", 
+      ifelse(
+          results$p.value > .01, "*",
+          ifelse(
+              results$p.value > .001, "**",
+              ifelse(
+                  results$p.value > .0001, "***",
+                  "****"
+              )
+          )
+      )
+  )
+  
+
 
   writexl::write_xlsx(results, paste0("output/tables/mesh/experiment_2/stats-level_glm_level", l, ".xlsx"))
 
