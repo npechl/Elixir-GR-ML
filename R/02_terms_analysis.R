@@ -143,7 +143,7 @@ for (l in c(0, seq_len(2))) {
 
   df <- rbind(t3$world$filtered, t3$greece$filtered)
 
-  df <- df[which(year <= 2020)]
+  df <- df[which(year >= 2011 & year <= 2020)]
 
   # library(rstatix)
 
@@ -205,6 +205,9 @@ for (l in c(0, seq_len(2))) {
 
   writexl::write_xlsx(results, paste0("output/tables/mesh/experiment_2/stats-level_glm_level", l, ".xlsx"))
 
+  
+  
+  
   # df$fsample <- paste0(df$year, "_", df$condition)
   #
   # df <- df[str_order(fsample, numeric = TRUE)]
