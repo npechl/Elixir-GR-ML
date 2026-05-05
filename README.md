@@ -9,6 +9,7 @@ The datasets that were used for the present study can be found at:
 2. Adamidi, E., Dimopoulos, A., Krithara, A., Psomopoulos, F., & Vergoulis, T. (2025). A survey on Machine Learning for Life Sciences in Greece. Zenodo. https://doi.org/10.5281/zenodo.17287162
 3. Adamidi, E., Dimopoulos, A., Krithara, A., Psomopoulos, F., & Vergoulis, T. (2025). A survey on Machine Learning for Life Sciences in Greece - Responses. Zenodo. https://doi.org/10.5281/zenodo.17414392
 4. Nentidis, A., & Krithara, A. (2025). Suplementary data for the analysis the AI Life Sciences Landscape in Greece. [Data set]. Zenodo. https://doi.org/10.5281/zenodo.17407809
+5. Adamidi, E., Dimopoulos, A., Krithara, A., Psomopoulos, F., & Vergoulis, T. (2026). AI/ ML educational Programs in Life Sciences in Greece [Data set]. Zenodo. https://doi.org/10.5281/zenodo.20041753
 
 ### Repository Structure
 - `/Python`: Python scripts for analysis.
