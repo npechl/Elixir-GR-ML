@@ -29,6 +29,4 @@ This work is licensed under the [MIT license](https://opensource.org/license/mit
 
 Please use the following for citing this work:
 
-```sh
 Adamidi, E., Chatzopoulos, S., Dimopoulos, A.C. et al. Mapping the AI life sciences landscape in Greece: a bibliometric comparison with global patterns. Sci Rep (2026). https://doi.org/10.1038/s41598-026-56107-2
-```
